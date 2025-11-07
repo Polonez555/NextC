@@ -33,8 +33,8 @@ void hot_reload_reload(void)
     if(serv_handle)dlclose(serv_handle);
     serv_handle = dlopen("./server.dylib", RTLD_NOW | RTLD_GLOBAL);
     if(serv_handle == 0)equit("Could not open server dl");
-    if((process_client_ptr = (void(*)(struct HttpContext*))dlsym(serv_handle, "process_client")) == 0)equit("Could not find sym");
-    if((server_setup_ptr = (void(*)(void))dlsym(serv_handle, "server_setup")) == 0)equit("Could not find sym");
+    if((process_client_ptr = (void(*)(struct HttpContext*))dlsym(serv_handle, "process_client")) == 0)equit("Could not find sym process_client");
+    if((server_setup_ptr = (void(*)(void))dlsym(serv_handle, "server_setup")) == 0)equit("Could not find sym server_setup");
     server_setup_ptr();
 }
 
@@ -110,6 +110,11 @@ void sighandl(int _)
     exit(0);
 }
 
+void sigsegvhandler(int _)
+{
+    pthread_exit(NULL);
+}
+
 struct ClientThreadArgs
 {
     int client_fd;
@@ -155,6 +160,8 @@ int main(void)
     pthread_t hthrd;
 
     signal(SIGINT, sighandl);
+    signal(SIGSEGV, sigsegvhandler);
+    signal(SIGPIPE, sigsegvhandler);
     printf("Hello\n");
     hot_reload_reload();
 
@@ -168,7 +175,7 @@ int main(void)
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY); /*All allowed*/
     if(bind(serv_sock, (const struct sockaddr*)&servaddr, sizeof(servaddr)) != 0)equit("Could not bind");
     if(listen(serv_sock, 50) != 0)equit("Listen failed\n");
-    printf("Server running\n");
+    printf("Server running http://localhost:8080/\n");
     while(1)
     {
         ctam = (struct ClientThreadArgs*)malloc(sizeof(struct ClientThreadArgs));

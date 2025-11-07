@@ -11,6 +11,8 @@ void http_ctx_init(struct HttpContext* ctx, int sock)
     ctx->header_length = 0;
     ctx->content = 0;
     ctx->headers = 0;
+    ctx->iheaders = 0;
+    ctx->iheader_count = 0;
 }
 
 void http_ctx_push_content(struct HttpContext* ctx, char* content, int content_length)
@@ -45,6 +47,12 @@ void http_serve_file(struct HttpContext* ctx, const char* path)
 void http_ctx_push_string(struct HttpContext* ctx,char* text)
 {
     http_ctx_push_content(ctx,text,strlen(text));
+}
+
+void http_ctx_emit_raw(struct HttpContext* ctx, char* text, int length)
+{
+    if(length == -1)length = strlen(text);
+    write(ctx->socket, text, length);
 }
 
 void http_ctx_send(struct HttpContext* ctx)
@@ -91,6 +99,10 @@ int http_parse_get(struct HttpContext* ctx, char* path, char* method, void* misc
     int i = 0;
     int q = 0;
     int len = 0;
+    char* key;
+    char* val;
+    int key_len;
+    int val_len;
 
     while(1)
     {
@@ -139,6 +151,20 @@ int http_parse_get(struct HttpContext* ctx, char* path, char* method, void* misc
                     parsing_space[dotdot] = 0;
                     dotdot++;
                     while(parsing_space[dotdot] == ' ')dotdot++;
+                    key_len = strlen(parsing_space);
+                    val_len = strlen(parsing_space+dotdot);
+
+                    key = (char*)calloc(key_len+1,1);
+                    val = (char*)calloc(val_len+1,1);
+
+                    strcpy(key, parsing_space);
+                    strcpy(val, parsing_space+dotdot);
+
+                    ctx->iheaders = (struct HttpHeader*)realloc(ctx->iheaders, (ctx->iheader_count+1)*sizeof(struct HttpHeader));
+                    ctx->iheaders[ctx->iheader_count].name = key;
+                    ctx->iheaders[ctx->iheader_count].value = val;
+                    ctx->iheader_count++;
+
                     header_handler(misc,parsing_space,parsing_space+dotdot);
                 }
                 bzero(parsing_space,sizeof(parsing_space));
@@ -150,6 +176,19 @@ int http_parse_get(struct HttpContext* ctx, char* path, char* method, void* misc
             parsing_space[prr] = a;
             prr++; 
             if(((unsigned int)prr) >= sizeof(parsing_space))return 1;
+        }
+    }
+    return 0;
+}
+
+char* http_find_iheader(struct HttpContext* ctx, char* key)
+{
+    int i;
+    for(i = 0;i < ctx->iheader_count;i++)
+    {
+        if(strcmp(ctx->iheaders[i].name,key) == 0)
+        {
+            return (char*)ctx->iheaders[i].value;
         }
     }
     return 0;

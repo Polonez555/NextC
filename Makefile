@@ -7,11 +7,11 @@ server:
 	gcc $(CFLAGS) $(CINCLUDES) -fPIC -c websocket.c -o websocket.o 
 	gcc $(CFLAGS) $(CINCLUDES) -fPIC -c http.c -o http.o 
 	gcc $(CFLAGS) $(CINCLUDES) -fPIC -c nextc.c -o nextc.o 
-	gcc -rdynamic -fsanitize=address -g -shared -fPIC server.o http.o websocket.o nextc.o -o server.dylib
+	gcc -rdynamic -fsanitize=address -g -shared -fPIC -lcrypto server.o http.o websocket.o nextc.o -o server.dylib
 
 run:
 	gcc $(CFLAGS) $(CINCLUDES) -fPIC -c http.c -o http.o
-	gcc -rdynamic $(CFLAGS) $(CINCLUDES) main.c http.c -o main
+	gcc -rdynamic $(CFLAGS) $(CINCLUDES) main.c http.c -lcrypto -o main
 	LD_LIBRARY_PATH=. ./main
 
 build_server:
@@ -19,7 +19,7 @@ build_server:
 	gcc $(CFLAGS) $(CINCLUDES) -c src/http.c -o server_libs/http.o
 	gcc $(CFLAGS) $(CINCLUDES) -c src/dev_server.c -o server_libs/dev_server.o
 	gcc $(CFLAGS) $(CINCLUDES) -c src/prod_server.c -o server_libs/prod_server.o
-	gcc $(CFLAGS) $(CINCLUDES) server_libs/http.o server_libs/dev_server.o -o dev_server
+	gcc $(CFLAGS) $(CINCLUDES) server_libs/http.o server_libs/dev_server.o -lcrypto -o dev_server
 	rm -r server_libs
 build_libs:
 	mkdir -p libs
